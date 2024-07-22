@@ -40,7 +40,9 @@ class OnlineLogisticRegression:
     def fit(self, X, y):
                 
         # step 1, find w
-        self.w = minimize(self.loss, self.w, args=(X, y), jac=self.grad, method="L-BFGS-B", options={'maxiter': 20, 'disp':True}).x
+        result = minimize(self.loss, self.w, args=(X, y), jac=self.grad, method="L-BFGS-B", options={'maxiter': 20, 'disp':False})
+        print(result)
+        self.w = result.x
         self.m = self.w
         
         # step 2, update q
@@ -89,25 +91,9 @@ class OnlineLogisticRegression:
         '''
         dots = np.dot(X_best, self.true_weights)
         probs = 1/(1 + np.exp(-dots))
-        rewards = np.array([np.random.choice([-1,1], p=[1 - prob, prob]) for prob in probs])
+        rewards = np.array([np.random.choice([0,1], p=[1 - prob, prob]) for prob in probs])
         return rewards, probs
     
-    def get_reward_with_delayed_feedback(self, rewards, prob = 0.0):
-        '''
-        We simulate the delayed feedback by flipping the reward p%
-        Delay cause 0 (-1) flip to 1 but not the other way around
-
-
-        We want: an array that has -1 flipped to 1 with probability p
-
-        Also lyra may have the storage that is can store the delayed feedback
-        Most importanly is a showes with a 1 will leads to the rest of them 0.
-        Only problem is all 0 booking list.
-        Also
-        '''
-        delayed_rewards = np.array([np.random.choice([-1,1], p=[1 - prob, prob]) if reward == -1 else reward for reward in rewards])
-        return delayed_rewards
-
     def calculate_regret(self, X, X_best):
         '''
         regrets is the difference between the best proba and the proba of the selected arm
@@ -188,5 +174,20 @@ class RandomPolicy(OnlineLogisticRegression):
             '''
             return np.random.normal(size=X.shape[0:2])                
         
+
+    
+              
+        
+class OnlineLogisticRegressionOnlineFeature(OnlineLogisticRegression):
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+    def add_new_feature(self, true_weight):
+        self.true_weights = np.append(self.true_weights, true_weight)
+        self.n_dim = len(self.true_weights)
+        self.m = np.append(self.m, 0)
+        self.q = np.append(self.q, self.lambda_)
+        self.w = np.append(self.w, np.random.normal(self.m, self.alpha * (self.q[-1]), size = self.n_dim))
 
     
